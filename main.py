@@ -50,7 +50,16 @@ class Pipeline:
         logger.info("Step 1: Script Generation")
         try:
             script_data = self.script_engine.generate_script(topic)
-            full_script_text = f"{script_data['hook']} {script_data['body']} {script_data['cta']}"
+            
+            # Handle new script array format
+            if "script" in script_data and isinstance(script_data["script"], list):
+                # Concatenate all text parts for full voiceover
+                full_script_text = " ".join([part["text"] for part in script_data["script"]])
+            else:
+                # Fallback for legacy format
+                full_script_text = f"{script_data.get('hook', '')} {script_data.get('body', '')} {script_data.get('cta', '')}"
+                
+            logger.info(f"Generated Script Length: {len(full_script_text)} chars")
         except Exception as e:
             logger.error(f"Script generation failed: {e}")
             return

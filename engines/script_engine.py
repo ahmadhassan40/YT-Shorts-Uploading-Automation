@@ -18,53 +18,71 @@ class OllamaScriptEngine(ScriptEngine):
         """
         logger.info(f"Generating script for topic '{topic}' using Ollama model '{self.model}'...")
         
-        prompt = f"""You are a professional YouTube Shorts scriptwriter. Write a script about: {topic}
+        prompt = f"""Write a YouTube Shorts script about: {topic}
 
-CRITICAL RULES:
-1. Output ONLY a JSON object, nothing else
-2. DO NOT include labels like "Hook:", "Body:", "CTA:" in the script text itself
-3. The script content should be natural speech - as if you're talking to a friend
-4. Duration: 30-60 seconds when spoken aloud
-5. NO website references, external links, or "check our website" lines
-6. CTA must naturally include "like, subscribe, and share"
+SCRIPT STRUCTURE (STRICTLY FOLLOW THIS ORDER):
 
-JSON FORMAT (copy this structure exactly):
+1. HOOK (first 2–3 seconds)
+   - Start with a strong, curiosity-inducing line
+   - Must instantly grab attention
+   - Can be a shocking fact, question, or surprising statement
+   - Do NOT introduce the topic plainly
+   - Example style: "Did you know...?", "This almost changed history forever..."
+
+2. MAIN CONTENT
+   - Explain the topic clearly and concisely
+   - Use short sentences suitable for subtitles
+   - Maintain a fast-paced, engaging flow
+   - Avoid unnecessary details
+   - Ensure factual accuracy
+
+3. ENDING / CALL TO ACTION
+   - End with a short CTA encouraging engagement
+   - Mention: Like, Share, and Subscribe
+   - Keep it natural and friendly
+
+OUTPUT FORMAT (VERY IMPORTANT):
+Return the output in the following JSON format ONLY:
+
 {{
-  "title": "write a catchy 60-character title here",
-  "description": "write 2-3 sentences about the video here, followed by #shorts #viral #topic #keyword #trending",
-  "hook": "write opening sentence here (no label, just the sentence)",
-  "body": "write main content here (no label, just natural speech with facts and examples)",
-  "cta": "write closing with like/subscribe/share here (no label, just natural speech)"
+  "title": "<short catchy title for the video>",
+  "description": "<video description with hashtags>",
+  "script": [
+    {{
+      "timestamp": "0-3s",
+      "text": "<hook line>"
+    }},
+    {{
+      "timestamp": "3-45s",
+      "text": "<main content text>"
+    }},
+    {{
+      "timestamp": "45-60s",
+      "text": "<call to action text>"
+    }}
+  ],
+  "tone": "informative, engaging, dramatic",
+  "target_duration_seconds": 60
 }}
 
-EXAMPLE OF CORRECT FORMAT:
-{{
-  "title": "Coffee's 1000-Year Journey to Your Cup",
-  "description": "Discover how coffee went from Ethiopian goats to the world's favorite drink in just 1000 years! #coffee #history #shorts #viral #facts",
-  "hook": "A goat herder in 850 AD noticed something strange about his goats",
-  "body": "They were dancing after eating red berries! The herder tried them and felt incredibly energized. Monks started using these berries to stay awake during prayers. By the 1600s, coffee houses spread across Europe and became centers of intellect and business. Today, we drink over 2 billion cups of coffee every single day worldwide",
-  "cta": "If coffee gets you going too, smash that like button, subscribe for more amazing history, and share this with your coffee-loving friends"
-}}
+RULES:
+- Do NOT include emojis in the script text
+- Do NOT include markdown
+- The script must be optimized for voice-over
+- Keep sentences short and clear
+- Assume background visuals will be added later
 
-WRONG EXAMPLE (DO NOT DO THIS):
-{{
-  "hook": "Hook: Did you know?",
-  "body": "Body: Here is the information...",
-  "cta": "CTA: Like and subscribe"
-}}
-
-Now write the script for: {topic}
-
+Now write for: {topic}
 Return ONLY the JSON object.
 """
         
         payload = {
             "model": self.model,
             "prompt": prompt,
-            "stream": True,  # Enable streaming to avoid timeout
+            "stream": True,
             "options": {
                 "temperature": 0.7,
-                "num_predict": 800  # Allow longer, more detailed responses
+                "num_predict": 1000  # Increased token limit for structured output
             }
         }
         
@@ -93,7 +111,7 @@ Return ONLY the JSON object.
             except json.JSONDecodeError:
                 # Try to find JSON object in the text
                 import re
-                json_match = re.search(r'\{[^}]*"title"[^}]*"description"[^}]*"hook"[^}]*"body"[^}]*"cta"[^}]*\}', generated_text, re.DOTALL)
+                json_match = re.search(r'\{.*\}', generated_text, re.DOTALL)
                 if json_match:
                     try:
                         script_data = json.loads(json_match.group(0))
@@ -105,22 +123,48 @@ Return ONLY the JSON object.
                 logger.warning("Could not parse JSON, creating fallback script")
                 script_data = {
                     "title": f"{topic} - Must See!",
-                    "description": f"Discover amazing facts about {topic}! #shorts #viral #{topic.replace(' ', '')}",
-                    "hook": "Did you know?",
-                    "body": generated_text[:200] if generated_text else f"Here's an interesting fact about {topic}.",
-                    "cta": "Like, subscribe, and share for more amazing content!"
+                    "description": f"Amazing facts about {topic} #shorts",
+                    "script": [
+                        {"timestamp": "0-5s", "text": "Did you know?"},
+                        {"timestamp": "5-50s", "text": generated_text[:200] if generated_text else f"Here is an interesting fact about {topic}."},
+                        {"timestamp": "50-60s", "text": "Like and subscribe for more!"}
+                    ],
+                    "tone": "informative"
                 }
             
             # Validate keys
-            required_keys = ["title", "description", "hook", "body", "cta"]
-            if not all(k in script_data for k in required_keys):
-                logger.warning("Missing required keys, adding defaults")
-                script_data.setdefault("title", f"{topic} - YouTube Shorts")
-                script_data.setdefault("description", f"Watch this amazing video about {topic}! #shorts #viral #{topic.replace(' ', '')}")
-                script_data.setdefault("hook", "Check this out!")
-                script_data.setdefault("body", f"Interesting facts about {topic}")
-                script_data.setdefault("cta", "Like, subscribe, and share for more!")
+            if "script" not in script_data or not isinstance(script_data["script"], list):
+                logger.warning("Invalid script format, normalizing...")
+                # Try to rescue legacy format if model ignored instructions
+                if "hook" in script_data and "body" in script_data:
+                     script_data["script"] = [
+                        {"timestamp": "0-5s", "text": script_data.get("hook", "")},
+                        {"timestamp": "5-50s", "text": script_data.get("body", "")},
+                        {"timestamp": "50-60s", "text": script_data.get("cta", "")}
+                     ]
+            
+            if "title" not in script_data:
+                script_data["title"] = f"{topic} Shorts"
                 
+            # Ensure description exists
+            if "description" not in script_data:
+                script_data["description"] = f"Watch this amazing video about {topic}! #shorts #viral"
+            
+            # CRITICAL: Force a CTA if missing or too short
+            if "script" in script_data and isinstance(script_data["script"], list):
+                has_cta = False
+                if len(script_data["script"]) > 0:
+                    last_segment = script_data["script"][-1]["text"].lower()
+                    if any(word in last_segment for word in ["subscribe", "like", "share", "follow"]):
+                        has_cta = True
+                
+                if not has_cta:
+                    logger.warning("Script missing CTA, appending mandatory ending.")
+                    script_data["script"].append({
+                        "timestamp": "55-60s",
+                        "text": "If you enjoyed this, please like and subscribe for more amazing facts!"
+                    })
+
             return script_data
             
         except requests.exceptions.ConnectionError:
