@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Large Binary Files (user must download separately)
+assets/voices/*.onnx
+assets/piper/*.exe
+assets/piper/*.dll
+assets/music/*.mp3
+assets/music/*.wav
+assets/music/*.m4a
+assets/stock_videos/*.mp4
+assets/stock_videos/*.avi
+assets/stock_videos/*.mov
+
+# Generated Output Files
+output/
+*.mp4
+*.wav
+*.srt
+*.log
+batch_errors.log
+auto_topics.txt
+
+# Sensitive Files (DO NOT COMMIT!)
+config/client_secrets.json
+config/token.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Cache/Temporary
+cache/
+*.tmp
+*.temp

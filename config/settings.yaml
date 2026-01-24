@@ -1,0 +1,47 @@
+project_name: "YT_BOT"
+version: "0.1.0"
+
+paths:
+  output_dir: "output"
+  assets_dir: "assets"
+  temp_dir: "temp"
+  logs_dir: "logs"
+
+engines:
+  script: "ollama"  # Options: mock, ollama
+  audio: "piper"    # Options: mock, piper
+  subtitle: "whisper" # Options: mock, whisper
+  video: "ffmpeg"     # Options: mock, ffmpeg
+  upload: "youtube"    # Options: mock, youtube
+
+# Engine Specific Settings
+ollama:
+  models: ["mistral", "llama3.2:1b", "phi3"]  # Available models
+  model: "mistral"  # Default/current model - CHANGED TO MISTRAL FOR BETTER QUALITY
+  rotation: "round-robin"  # Options: round-robin, random, default
+  base_url: "http://localhost:11434"
+
+piper:
+  binary_path: "assets/piper/piper.exe"
+  model_path: "assets/voices/en_US-ryan-medium.onnx"
+
+# Background Music Settings
+music:
+  enabled: true
+  tracks_dir: "assets/music"
+  volume: -20  # dB reduction (negative value)
+
+youtube:
+  client_secrets_file: "config/client_secrets.json"
+  token_file: "config/token.json"
+
+# Scheduler Settings
+scheduler:
+  enabled: true  # Set to true to enable scheduled runs
+  mode: "batch"  # Options: "batch" (processes topics.txt) or "single"
+  run_time: "09:00"  # Time in HH:MM format (24-hour)
+  default_topic: "Trending Topic of the Day"  # Used in 'single' mode
+  
+  # Auto-topic generation (for true automation)
+  auto_generate_topics: false  # If true, auto-generates topics daily
+  topics_per_run: 5  # Number of topics to auto-generate

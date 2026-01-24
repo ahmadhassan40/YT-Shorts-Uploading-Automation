@@ -1,0 +1,14 @@
+# YT_BOT Topics List
+# Add one topic per line
+# Lines starting with # are ignored
+
+The Evolution of Smartphones
+Amazing Deep Sea Creatures
+How the Internet Changed Everything
+The Science Behind Dreams
+Ancient Egyptian Mysteries
+The Future of Space Exploration
+How Coffee Conquered the World
+The Story of Bitcoin
+Revolutionary Medical Breakthroughs
+Climate Change Solutions
