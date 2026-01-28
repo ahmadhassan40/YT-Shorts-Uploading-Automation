@@ -64,6 +64,10 @@ class Pipeline:
             logger.error(f"Script generation failed: {e}")
             return
 
+        # Inject topic into script_data for downstream usage (e.g. video search)
+        if script_data:
+            script_data['topic'] = topic
+
         # 2. Generate Audio
         logger.info("Step 2: Audio Generation")
         try:

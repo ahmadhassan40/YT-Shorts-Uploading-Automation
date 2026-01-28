@@ -47,6 +47,7 @@ Return the output in the following JSON format ONLY:
 {{
   "title": "<short catchy title for the video>",
   "description": "<video description with hashtags>",
+  "visual_keywords": ["keyword1", "keyword2", "keyword3"],
   "script": [
     {{
       "timestamp": "0-3s",
@@ -66,6 +67,7 @@ Return the output in the following JSON format ONLY:
 }}
 
 RULES:
+- "visual_keywords": Provide 3-5 single-word search terms for finding background videos (e.g. for 'Rome' use ['colosseum', 'roman', 'ancient']).
 - Do NOT include emojis in the script text
 - Do NOT include markdown
 - The script must be optimized for voice-over
@@ -145,7 +147,14 @@ Return ONLY the JSON object.
             
             if "title" not in script_data:
                 script_data["title"] = f"{topic} Shorts"
-                
+            
+            # Ensure visual keywords exist
+            if "visual_keywords" not in script_data or not isinstance(script_data["visual_keywords"], list):
+                # Fallback: simple keyword extraction from topic
+                cleanup = topic.lower().replace("history of", "").replace("facts", "").strip()
+                # Add generic fallback terms to ensure Pexels finds something
+                script_data["visual_keywords"] = [cleanup, "technology", "abstract", "background", "nature"]
+
             # Ensure description exists
             if "description" not in script_data:
                 script_data["description"] = f"Watch this amazing video about {topic}! #shorts #viral"

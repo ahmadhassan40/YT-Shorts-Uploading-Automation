@@ -31,6 +31,12 @@ music:
   tracks_dir: "assets/music"
   volume: -20  # dB reduction (negative value)
 
+# Stock Video Settings
+stock_videos:
+  provider: "pexels"  # Options: local, pexels
+  api_key: "UmSOeCVpk5P2YuWho1vjHUESsv6RRv4O4JygamgGvHWyB2m37wnndKJi"  # Replace with your key
+  orientation: "portrait"  # portrait (9:16) or landscape
+
 youtube:
   client_secrets_file: "config/client_secrets.json"
   token_file: "config/token.json"
