@@ -20,71 +20,101 @@ class OllamaScriptEngine(ScriptEngine):
         
         prompt = f"""Write a YouTube Shorts script about: {topic}
 
+CHANNEL NICHE: History + Dark Facts + Shocking Truths
+TARGET AUDIENCE: People who love discovering hidden historical events, dark secrets, and shocking revelations
+
 SCRIPT STRUCTURE (STRICTLY FOLLOW THIS ORDER):
 
-1. HOOK (first 2–3 seconds)
-   - Start with a strong, curiosity-inducing line
-   - Must instantly grab attention
-   - Can be a shocking fact, question, or surprising statement
-   - Do NOT introduce the topic plainly
-   - Example style: "Did you know...?", "This almost changed history forever..."
+1. HOOK (0–3 seconds) - CRITICAL FOR SUCCESS
+   Choose ONE of these proven hook patterns based on the topic:
+   
+   A. Hidden Knowledge Pattern:
+      - "This historical fact was hidden for centuries..."
+      - "They don't teach this dark truth in school..."
+      - "What they never told you about [topic]..."
+   
+   B. Shocking Scale Pattern:
+      - "This decision killed millions—and no one talks about it..."
+      - "One choice changed history forever—and it was kept secret..."
+      - "This mistake cost thousands of lives..."
+   
+   C. Question Pattern:
+      - "Do you know the dark truth behind [topic]?"
+      - "Ever wondered why they hide this from history books?"
+   
+   D. Immediate Shock Pattern:
+      - "The truth about [topic] will shock you..."
+      - "[Topic] was hiding something sinister..."
+   
+   REQUIREMENTS:
+   - Create immediate curiosity
+   - Use dramatic, suspenseful tone
+   - NO generic introductions
+   - Maximum 10-15 words
 
-2. MAIN CONTENT
-   - Explain the topic clearly and concisely
-   - Use short sentences suitable for subtitles
-   - Maintain a fast-paced, engaging flow
-   - Avoid unnecessary details
-   - Ensure factual accuracy
+2. CONTEXT (3–15 seconds)
+   - Who / When / Where - establish the setting
+   - Provide just enough background for the story to make sense
+   - Use short, punchy sentences (ideal for 2-4 word subtitles)
+   - Build anticipation for the dark reveal
 
-3. ENDING / CALL TO ACTION
-   - End with a short CTA encouraging engagement
-   - Mention: Like, Share, and Subscribe
-   - Keep it natural and friendly
+3. DARK REVEAL (15–52 seconds) - MAIN CONTENT
+   - This is the core shocking content: secret, betrayal, death, cover-up, etc.
+   - Include the twist/revelation that justifies the hook
+   - Examples of transitions:
+     * "But here's what they covered up..."
+     * "The truth? Far more sinister..."
+     * "What happened next is horrifying..."
+   - Layer multiple shocking details if the topic warrants it
+   - Maintain suspenseful, dramatic pacing throughout
+   - This section can be longer for complex topics (up to ~37 seconds)
 
-OUTPUT FORMAT (VERY IMPORTANT):
-Return the output in the following JSON format ONLY:
+4. ENDING (Last 3-5 seconds)
+   - Soft, natural CTA - don't be pushy
+   - Examples:
+     * "More dark truths coming soon. Subscribe."
+     * "Want more shocking history? Hit subscribe."
+   - Keep it brief and authentic
 
+VIDEO DURATION: 30-60 seconds (flexible based on topic complexity)
+- Simple topics: aim for 30-40s
+- Complex/layered topics: can extend to 50-60s
+- The AI should determine optimal length based on how much shocking content exists
+
+OUTPUT FORMAT:
+Return strictly valid JSON with this structure:
 {{
-  "title": "<short catchy title for the video>",
-  "description": "<video description with hashtags>",
+  "title": "Video Title",
+  "description": "Video Description",
   "visual_keywords": ["keyword1", "keyword2", "keyword3"],
   "script": [
-    {{
-      "timestamp": "0-3s",
-      "text": "<hook line>"
-    }},
-    {{
-      "timestamp": "3-45s",
-      "text": "<main content text>"
-    }},
-    {{
-      "timestamp": "45-60s",
-      "text": "<call to action text>"
-    }}
+    {{"timestamp": "0-3s", "section": "hook", "text": "Hook text here"}},
+    {{"timestamp": "3-15s", "section": "context", "text": "Context text here"}},
+    {{"timestamp": "15-52s", "section": "dark_reveal", "text": "Main shocking content here"}},
+    {{"timestamp": "52-60s", "section": "ending", "text": "CTA text here"}}
   ],
-  "tone": "informative, engaging, dramatic",
+  "tone": "dark",
   "target_duration_seconds": 60
 }}
 
-RULES:
-- "visual_keywords": Provide 3-5 single-word search terms for finding background videos (e.g. for 'Rome' use ['colosseum', 'roman', 'ancient']).
-- Do NOT include emojis in the script text
-- Do NOT include markdown
-- The script must be optimized for voice-over
-- Keep sentences short and clear
-- Assume background visuals will be added later
+CRITICAL RULES:
+- Output valid JSON only.
+- visual_keywords: 5 terms for Pexels search.
+- Script text must be narratable (no labels like 'Hook:').
+- VIDEO MUST BE AT LEAST 40 SECONDS LONG. This is a "Story Time" video.
+- Expand the 'dark_reveal' section to ensure sufficient length.
 
 Now write for: {topic}
-Return ONLY the JSON object.
 """
-        
+
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": True,
+            "format": "json",  # Enable native structured output for reliability
             "options": {
                 "temperature": 0.7,
-                "num_predict": 1000  # Increased token limit for structured output
+                "num_predict": 1200  # Increased token limit for longer scripts
             }
         }
         
@@ -110,26 +140,59 @@ Return ONLY the JSON object.
             # First, try direct JSON parse
             try:
                 script_data = json.loads(generated_text)
+                # Ensure it's a dictionary, not a string or list
+                if not isinstance(script_data, dict):
+                    logger.warning(f"Parsed JSON is {type(script_data)}, expected dict. Trying to recover...")
+                    if isinstance(script_data, str):
+                        try:
+                            # Handle double-encoded JSON
+                            script_data = json.loads(script_data)
+                        except:
+                            script_data = None
+                    else:
+                        script_data = None
+                        
+                if not isinstance(script_data, dict):
+                     script_data = None
+
             except json.JSONDecodeError:
-                # Try to find JSON object in the text
+                # Try to find JSON object in the text (handling markdown blocks)
                 import re
-                json_match = re.search(r'\{.*\}', generated_text, re.DOTALL)
-                if json_match:
+                
+                # Check for markdown code blocks first
+                code_block_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', generated_text, re.DOTALL)
+                if code_block_match:
                     try:
-                        script_data = json.loads(json_match.group(0))
+                        potential_data = json.loads(code_block_match.group(1))
+                        if isinstance(potential_data, dict):
+                            script_data = potential_data
                     except:
                         pass
+                
+                # If no code block, look for any curly brace block
+                if not script_data:
+                    json_match = re.search(r'\{.*\}', generated_text, re.DOTALL)
+                    if json_match:
+                        try:
+                            potential_data = json.loads(json_match.group(0))
+                            if isinstance(potential_data, dict):
+                                script_data = potential_data
+                        except:
+                            pass
             
             # If still no valid JSON, create a simple fallback
             if not script_data:
                 logger.warning("Could not parse JSON, creating fallback script")
+                # Fallback: Don't use raw text as it contains labels. Use a safe default.
+                # Or try to clean the raw text by removing known labels?
+                # Better to use a safe default to avoid "Hook statement" being read aloud.
                 script_data = {
                     "title": f"{topic} - Must See!",
                     "description": f"Amazing facts about {topic} #shorts",
                     "script": [
-                        {"timestamp": "0-5s", "text": "Did you know?"},
-                        {"timestamp": "5-50s", "text": generated_text[:200] if generated_text else f"Here is an interesting fact about {topic}."},
-                        {"timestamp": "50-60s", "text": "Like and subscribe for more!"}
+                        {"timestamp": "0-5s", "text": f"Here is a shocking fact about {topic}."}, 
+                        {"timestamp": "5-50s", "text": "This historical event has secrets that few people know about. It changed everything."},
+                        {"timestamp": "50-60s", "text": "Subscribe to find out more!"}
                     ],
                     "tone": "informative"
                 }

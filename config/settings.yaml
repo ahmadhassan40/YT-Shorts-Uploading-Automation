@@ -16,8 +16,8 @@ engines:
 
 # Engine Specific Settings
 ollama:
-  models: ["mistral", "llama3.2:1b", "phi3"]  # Available models
-  model: "llama3.2:1b"  # Default/current model - FASTER & MORE RELIABLE
+  models: ["mistral", "llama3.2:1b"]  # Available models
+  model: "llama3.2:1b"  # Default/current model - FASTER & PROMPT TUNED
   rotation: "round-robin"  # Options: round-robin, random, default
   base_url: "http://localhost:11434"
 

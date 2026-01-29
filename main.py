@@ -52,9 +52,19 @@ class Pipeline:
             script_data = self.script_engine.generate_script(topic)
             
             # Handle new script array format
+            # Handle new script array format
             if "script" in script_data and isinstance(script_data["script"], list):
                 # Concatenate all text parts for full voiceover
-                full_script_text = " ".join([part["text"] for part in script_data["script"]])
+                # Sanitize text to remove potential labels if model hallucinated them inside the "text" field
+                cleaned_parts = []
+                for part in script_data["script"]:
+                    text = part["text"]
+                    # Remove common prefixes like "Hook:", "Context:", "Text:"
+                    import re
+                    text = re.sub(r'^(Hook|Context|Body|Twist|Reveal|Ending|CTA|Text):\s*', '', text, flags=re.IGNORECASE)
+                    cleaned_parts.append(text)
+                
+                full_script_text = " ".join(cleaned_parts)
             else:
                 # Fallback for legacy format
                 full_script_text = f"{script_data.get('hook', '')} {script_data.get('body', '')} {script_data.get('cta', '')}"

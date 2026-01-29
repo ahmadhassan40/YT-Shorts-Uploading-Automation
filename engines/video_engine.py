@@ -200,29 +200,37 @@ class FFmpegVideoEngine(VideoEngine):
         # Note: Subtitles burning often requires full path with forward slashes on Windows
         subtitles_path_fixed = subtitles_path.replace("\\", "/").replace(":", "\\:")
 
-        # Modern subtitle styling for YouTube Shorts
-        subtitle_style = (
-            "Fontname=Arial Black,"  # Bold, readable font
-            "Fontsize=18,"  # Smaller, less intrusive
-            "PrimaryColour=&H00FFFFFF,"  # White text
-            "OutlineColour=&H00000000,"  # Black outline
-            "BorderStyle=3,"  # Outline + shadow
-            "Outline=2,"  # Thick outline for readability
-            "Shadow=1,"  # Subtle shadow
-            "MarginV=50,"  # Position from top (50 pixels from top)
-            "Alignment=6,"  # Top center alignment
-            "Bold=1"  # Bold text
-        )
+        # Check if we're using ASS format (advanced styling with embedded styles)
+        is_ass_format = subtitles_path.endswith('.ass')
+        
+        if is_ass_format:
+            # ASS format: use built-in styles, don't override with force_style
+            subtitle_filter = f"ass='{subtitles_path_fixed}'"
+            logger.info("Using ASS subtitle format with embedded styles")
+        else:
+            # SRT format: legacy fallback with force_style override
+            subtitle_style = (
+                "Fontname=Arial Black,"  # Bold, readable font
+                "Fontsize=18,"  # Smaller, less intrusive
+                "PrimaryColour=&H00FFFFFF,"  # White text
+                "OutlineColour=&H00000000,"  # Black outline
+                "BorderStyle=3,"  # Outline + shadow
+                "Outline=2,"  # Thick outline for readability
+                "Shadow=1,"  # Subtle shadow
+                "MarginV=50,"  # Position from top (50 pixels from top)
+                "Alignment=6,"  # Top center alignment
+                "Bold=1"  # Bold text
+            )
+            subtitle_filter = f"subtitles='{subtitles_path_fixed}':force_style='{subtitle_style}'"
+            logger.info("Using SRT subtitle format with force_style override")
 
         # Get background music if enabled
         music_track = self.get_random_music_track()
         
         if music_track:
             # Complex FFmpeg command with background music
-            # 1. Loop background video
-            # 2. Mix voice (audio_path) with music (music_track)
-            # 3. Music is lowered to configured volume (default -20dB)
-            # 4. Apply subtitles
+            # Strategy: Scale to fit 9:16 ratio FIRST, then crop to exact dimensions
+            # This prevents "Invalid too big" crop errors
             cmd = [
                 "ffmpeg",
                 "-y",  # Overwrite
@@ -235,7 +243,10 @@ class FFmpegVideoEngine(VideoEngine):
                 f"[1:a]volume=0dB[voice];"  # Voice at normal volume
                 f"[2:a]volume={self.music_volume}dB[music];"  # Music ducked
                 f"[voice][music]amix=inputs=2:duration=shortest[audio];"  # Mix both
-                f"[0:v]crop=ih*(9/16):ih,subtitles='{subtitles_path_fixed}':force_style='{subtitle_style}'[video]",
+                # Safe scaling: scale to width 1080, calculate height for 9:16
+                # Then crop from center to ensure exact 1080x1920
+                # Finally apply subtitles
+                f"[0:v]scale=1080:-2,crop=1080:1920,{subtitle_filter}[video]",
                 "-map", "[video]",
                 "-map", "[audio]",
                 "-shortest",  # Stop when shortest input ends
@@ -256,7 +267,7 @@ class FFmpegVideoEngine(VideoEngine):
                 "-shortest",
                 "-map", "0:v",
                 "-map", "1:a",
-                "-vf", f"crop=ih*(9/16):ih,subtitles='{subtitles_path_fixed}':force_style='{subtitle_style}'",
+                "-vf", f"scale=1080:-2,crop=1080:1920,{subtitle_filter}",
                 "-c:v", "libx264",
                 "-preset", "fast",
                 "-c:a", "aac",
