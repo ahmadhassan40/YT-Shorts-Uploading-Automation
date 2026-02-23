@@ -52,17 +52,18 @@ class Pipeline:
             script_data = self.script_engine.generate_script(topic)
             
             # Handle new script array format
-            # Handle new script array format
             if "script" in script_data and isinstance(script_data["script"], list):
                 # Concatenate all text parts for full voiceover
                 # Sanitize text to remove potential labels if model hallucinated them inside the "text" field
                 cleaned_parts = []
                 for part in script_data["script"]:
-                    text = part["text"]
+                    # Safe extraction: segment may be a dict or a plain string
+                    text = part["text"] if isinstance(part, dict) else str(part)
                     # Remove common prefixes like "Hook:", "Context:", "Text:"
                     import re
-                    text = re.sub(r'^(Hook|Context|Body|Twist|Reveal|Ending|CTA|Text):\s*', '', text, flags=re.IGNORECASE)
-                    cleaned_parts.append(text)
+                    text = re.sub(r'^(Hook|Context|Body|Twist|Reveal|Ending|CTA|Text|Main Content|Call to Action):\s*', '', text, flags=re.IGNORECASE)
+                    if text.strip():
+                        cleaned_parts.append(text.strip())
                 
                 full_script_text = " ".join(cleaned_parts)
             else:

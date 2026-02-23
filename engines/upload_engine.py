@@ -23,6 +23,7 @@ class YouTubeUploadEngine(UploadEngine):
     def authenticate(self):
         """
         Authenticates the user using OAuth 2.0.
+        Automatically handles expired/revoked tokens by re-running the browser login flow.
         """
         logger.info("Authenticating with YouTube...")
         if os.path.exists(self.token_file):
@@ -31,16 +32,25 @@ class YouTubeUploadEngine(UploadEngine):
         if not self.credentials or not self.credentials.valid:
             if self.credentials and self.credentials.expired and self.credentials.refresh_token:
                 logger.info("Refreshing expired token...")
-                self.credentials.refresh(Request())
-            else:
-                logger.info("No valid token found. Initiating new login...")
+                try:
+                    self.credentials.refresh(Request())
+                except Exception as e:
+                    # Token was revoked or is invalid — delete it and force re-auth
+                    logger.warning(f"Token refresh failed ({e}). Deleting stale token and re-authenticating...")
+                    if os.path.exists(self.token_file):
+                        os.remove(self.token_file)
+                    self.credentials = None
+
+            if not self.credentials or not self.credentials.valid:
+                logger.info("No valid token found. Opening browser for login...")
                 if not os.path.exists(self.client_secrets_file):
-                    raise FileNotFoundError(f"Client secrets file not found at {self.client_secrets_file}. Cannot authenticate.")
-                
+                    raise FileNotFoundError(
+                        f"Client secrets file not found at {self.client_secrets_file}. Cannot authenticate."
+                    )
                 flow = InstalledAppFlow.from_client_secrets_file(self.client_secrets_file, self.SCOPES)
                 self.credentials = flow.run_local_server(port=0)
 
-            # Save the credentials for the next run
+            # Save fresh credentials for the next run
             with open(self.token_file, "w") as token:
                 token.write(self.credentials.to_json())
                 logger.info(f"Token saved to {self.token_file}")

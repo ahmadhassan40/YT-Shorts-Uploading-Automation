@@ -20,89 +20,68 @@ class OllamaScriptEngine(ScriptEngine):
         
         prompt = f"""Write a YouTube Shorts script about: {topic}
 
-CHANNEL NICHE: History + Dark Facts + Shocking Truths
-TARGET AUDIENCE: People who love discovering hidden historical events, dark secrets, and shocking revelations
-
 SCRIPT STRUCTURE (STRICTLY FOLLOW THIS ORDER):
 
-1. HOOK (0–3 seconds) - CRITICAL FOR SUCCESS
-   Choose ONE of these proven hook patterns based on the topic:
-   
-   A. Hidden Knowledge Pattern:
-      - "This historical fact was hidden for centuries..."
-      - "They don't teach this dark truth in school..."
-      - "What they never told you about [topic]..."
-   
-   B. Shocking Scale Pattern:
-      - "This decision killed millions—and no one talks about it..."
-      - "One choice changed history forever—and it was kept secret..."
-      - "This mistake cost thousands of lives..."
-   
-   C. Question Pattern:
-      - "Do you know the dark truth behind [topic]?"
-      - "Ever wondered why they hide this from history books?"
-   
-   D. Immediate Shock Pattern:
-      - "The truth about [topic] will shock you..."
-      - "[Topic] was hiding something sinister..."
-   
-   REQUIREMENTS:
-   - Create immediate curiosity
-   - Use dramatic, suspenseful tone
-   - NO generic introductions
-   - Maximum 10-15 words
+1. HOOK (first 2-3 seconds)
+   - Start with a strong, curiosity-inducing line
+   - Must instantly grab attention
+   - Can be a shocking fact, question, or surprising statement
+   - Do NOT introduce the topic plainly
+   - Example style:
+     "Did you know...?"
+     "This almost changed history forever..."
+     "One mistake that cost millions of lives..."
 
-2. CONTEXT (3–15 seconds)
-   - Who / When / Where - establish the setting
-   - Provide just enough background for the story to make sense
-   - Use short, punchy sentences (ideal for 2-4 word subtitles)
-   - Build anticipation for the dark reveal
+2. MAIN CONTENT
+   - Explain the topic clearly and concisely
+   - Use short sentences suitable for subtitles
+   - Maintain a fast-paced, engaging flow
+   - Avoid unnecessary details
+   - Focus only on the most interesting and important facts
+   - Ensure factual accuracy
+   - This section MUST be long enough so the total video is at least 30 seconds
 
-3. DARK REVEAL (15–52 seconds) - MAIN CONTENT
-   - This is the core shocking content: secret, betrayal, death, cover-up, etc.
-   - Include the twist/revelation that justifies the hook
-   - Examples of transitions:
-     * "But here's what they covered up..."
-     * "The truth? Far more sinister..."
-     * "What happened next is horrifying..."
-   - Layer multiple shocking details if the topic warrants it
-   - Maintain suspenseful, dramatic pacing throughout
-   - This section can be longer for complex topics (up to ~37 seconds)
+3. ENDING / CALL TO ACTION
+   - End with a short CTA encouraging engagement
+   - Mention: Like, Share, Comment, and Subscribe
+   - Keep it natural and friendly
 
-4. ENDING (Last 3-5 seconds)
-   - Soft, natural CTA - don't be pushy
-   - Examples:
-     * "More dark truths coming soon. Subscribe."
-     * "Want more shocking history? Hit subscribe."
-   - Keep it brief and authentic
+OUTPUT FORMAT (VERY IMPORTANT):
+Return the output in the following JSON format ONLY:
 
-VIDEO DURATION: 30-60 seconds (flexible based on topic complexity)
-- Simple topics: aim for 30-40s
-- Complex/layered topics: can extend to 50-60s
-- The AI should determine optimal length based on how much shocking content exists
-
-OUTPUT FORMAT:
-Return strictly valid JSON with this structure:
 {{
-  "title": "Video Title",
-  "description": "Video Description",
-  "visual_keywords": ["keyword1", "keyword2", "keyword3"],
+  "title": "<short catchy title for the video>",
+  "description": "<short YouTube description with hashtags>",
+  "visual_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
   "script": [
-    {{"timestamp": "0-3s", "section": "hook", "text": "Hook text here"}},
-    {{"timestamp": "3-15s", "section": "context", "text": "Context text here"}},
-    {{"timestamp": "15-52s", "section": "dark_reveal", "text": "Main shocking content here"}},
-    {{"timestamp": "52-60s", "section": "ending", "text": "CTA text here"}}
+    {{
+      "timestamp": "0-3s",
+      "text": "<hook line>"
+    }},
+    {{
+      "timestamp": "3-45s",
+      "text": "<main content text — must be detailed enough for at least 27 seconds of narration>"
+    }},
+    {{
+      "timestamp": "45-60s",
+      "text": "<call to action text>"
+    }}
   ],
-  "tone": "dark",
+  "tone": "informative, engaging, dramatic",
   "target_duration_seconds": 60
 }}
 
-CRITICAL RULES:
-- Output valid JSON only.
-- visual_keywords: 5 terms for Pexels search.
-- Script text must be narratable (no labels like 'Hook:').
-- VIDEO MUST BE AT LEAST 40 SECONDS LONG. This is a "Story Time" video.
-- Expand the 'dark_reveal' section to ensure sufficient length.
+RULES:
+- Do NOT include emojis
+- Do NOT include markdown
+- Do NOT add explanations
+- Do NOT add anything outside the JSON
+- The script must be optimized for voice-over and subtitles
+- Keep sentences short and clear
+- Avoid complex words
+- VIDEO MUST be at least 30 seconds when narrated aloud at normal pace
+- Expand the main content section as much as needed to hit 30-60 seconds
+- visual_keywords: 5 terms to search for relevant background footage
 
 Now write for: {topic}
 """
@@ -197,45 +176,115 @@ Now write for: {topic}
                     "tone": "informative"
                 }
             
-            # Validate keys
+            # ── STEP 1: Ensure script key exists and is a list ─────────────────────
             if "script" not in script_data or not isinstance(script_data["script"], list):
-                logger.warning("Invalid script format, normalizing...")
-                # Try to rescue legacy format if model ignored instructions
-                if "hook" in script_data and "body" in script_data:
-                     script_data["script"] = [
-                        {"timestamp": "0-5s", "text": script_data.get("hook", "")},
-                        {"timestamp": "5-50s", "text": script_data.get("body", "")},
-                        {"timestamp": "50-60s", "text": script_data.get("cta", "")}
-                     ]
-            
-            if "title" not in script_data:
-                script_data["title"] = f"{topic} Shorts"
-            
-            # Ensure visual keywords exist
-            if "visual_keywords" not in script_data or not isinstance(script_data["visual_keywords"], list):
-                # Fallback: simple keyword extraction from topic
+                logger.warning("Script key missing or invalid — checking for legacy format.")
+                if isinstance(script_data, dict) and "hook" in script_data:
+                    script_data["script"] = [
+                        {"timestamp": "0-3s",   "text": script_data.get("hook", "")},
+                        {"timestamp": "3-45s",  "text": script_data.get("body", script_data.get("main", ""))},
+                        {"timestamp": "45-60s", "text": script_data.get("cta", script_data.get("ending", ""))},
+                    ]
+                else:
+                    script_data["script"] = []
+
+            # ── STEP 2: Normalize each segment to a dict with a "text" key ─────────
+            normalized = []
+            for i, seg in enumerate(script_data["script"]):
+                if isinstance(seg, dict):
+                    if "text" not in seg or not seg["text"].strip():
+                        continue          # skip empty segments
+                    normalized.append(seg)
+                elif isinstance(seg, str) and seg.strip():
+                    logger.warning(f"Segment {i} is a plain string — wrapping into dict.")
+                    normalized.append({"timestamp": f"{i*15}-{(i+1)*15}s", "text": seg.strip()})
+                else:
+                    logger.warning(f"Segment {i} has unexpected type {type(seg)} — skipping.")
+            script_data["script"] = normalized
+
+            # ── STEP 3: ENFORCE 3-SECTION STRUCTURE: hook / main / ending ──────────
+            # Defaults used when model failed to produce a section
+            DEFAULT_HOOK    = f"Did you know this shocking fact about {topic}?"
+            DEFAULT_MAIN    = f"Here are the most fascinating and surprising facts about {topic}. It has a hidden history that most people have never heard of. Experts have studied it for years and the findings are truly remarkable."
+            DEFAULT_ENDING  = "If you enjoyed this, please like, comment, share, and subscribe for more amazing content!"
+
+            CTA_KEYWORDS = ["subscribe", "like", "share", "follow", "comment"]
+
+            def _has_cta(text: str) -> bool:
+                return any(w in text.lower() for w in CTA_KEYWORDS)
+
+            segs = script_data["script"]
+            n = len(segs)
+
+            if n == 0:
+                # Model returned absolutely nothing — inject all 3 defaults
+                logger.warning("Script is empty — injecting all 3 default sections.")
+                script_data["script"] = [
+                    {"timestamp": "0-3s",   "text": DEFAULT_HOOK},
+                    {"timestamp": "3-45s",  "text": DEFAULT_MAIN},
+                    {"timestamp": "45-60s", "text": DEFAULT_ENDING},
+                ]
+
+            elif n == 1:
+                # Only one segment — treat it as main content, inject hook + ending
+                logger.warning("Only 1 segment found — injecting missing hook and ending.")
+                main_text = segs[0]["text"]
+                script_data["script"] = [
+                    {"timestamp": "0-3s",   "text": DEFAULT_HOOK},
+                    {"timestamp": "3-45s",  "text": main_text},
+                    {"timestamp": "45-60s", "text": DEFAULT_ENDING},
+                ]
+
+            elif n == 2:
+                # Two segments found. Check if ending is missing.
+                last_text = segs[-1]["text"]
+                if not _has_cta(last_text):
+                    logger.warning("2 segments found, last has no CTA — appending ending.")
+                    script_data["script"].append({"timestamp": "45-60s", "text": DEFAULT_ENDING})
+                else:
+                    # Last segment IS the CTA, so inject a hook at the front if very short
+                    current_hook = segs[0]["text"]
+                    if len(current_hook.split()) < 20:
+                        logger.info("2-segment script: treating first as hook, second as ending — inserting main.")
+                        script_data["script"] = [
+                            segs[0],
+                            {"timestamp": "3-45s", "text": DEFAULT_MAIN},
+                            segs[1],
+                        ]
+
+            else:
+                # 3+ segments. Find and validate the ending/CTA specifically.
+                last_seg = script_data["script"][-1]
+                if not _has_cta(last_seg.get("text", "")):
+                    # Last segment is not a CTA — see if any other segment is
+                    cta_indices = [
+                        i for i, s in enumerate(script_data["script"])
+                        if _has_cta(s.get("text", ""))
+                    ]
+                    if cta_indices:
+                        # Move the CTA segment to the very end
+                        cta_seg = script_data["script"].pop(cta_indices[-1])
+                        script_data["script"].append(cta_seg)
+                        logger.info("Moved CTA segment to end of script.")
+                    else:
+                        # No CTA anywhere — append one
+                        logger.warning("No CTA found in any segment — appending ending.")
+                        script_data["script"].append({"timestamp": "55-60s", "text": DEFAULT_ENDING})
+
+            # ── STEP 4: Ensure metadata fields exist ───────────────────────────────
+            if "title" not in script_data or not script_data["title"].strip():
+                script_data["title"] = f"{topic} - Shocking Facts"
+
+            if "description" not in script_data or not script_data["description"].strip():
+                script_data["description"] = f"Amazing facts about {topic}! #shorts #viral #facts"
+
+            if "visual_keywords" not in script_data or not isinstance(script_data["visual_keywords"], list) or len(script_data["visual_keywords"]) == 0:
                 cleanup = topic.lower().replace("history of", "").replace("facts", "").strip()
-                # Add generic fallback terms to ensure Pexels finds something
                 script_data["visual_keywords"] = [cleanup, "technology", "abstract", "background", "nature"]
 
-            # Ensure description exists
-            if "description" not in script_data:
-                script_data["description"] = f"Watch this amazing video about {topic}! #shorts #viral"
-            
-            # CRITICAL: Force a CTA if missing or too short
-            if "script" in script_data and isinstance(script_data["script"], list):
-                has_cta = False
-                if len(script_data["script"]) > 0:
-                    last_segment = script_data["script"][-1]["text"].lower()
-                    if any(word in last_segment for word in ["subscribe", "like", "share", "follow"]):
-                        has_cta = True
-                
-                if not has_cta:
-                    logger.warning("Script missing CTA, appending mandatory ending.")
-                    script_data["script"].append({
-                        "timestamp": "55-60s",
-                        "text": "If you enjoyed this, please like and subscribe for more amazing facts!"
-                    })
+            # Log final structure for debugging
+            logger.info(f"Final script: {len(script_data['script'])} sections — "
+                        + " | ".join(f"[{s.get('timestamp','?')}] {s['text'][:30]}..." for s in script_data["script"]))
 
             return script_data
             
